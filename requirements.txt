@@ -2,3 +2,5 @@
 numpy
 jieba
 
+# the lib used to thrift
+thrift

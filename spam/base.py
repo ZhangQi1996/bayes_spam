@@ -1,8 +1,11 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
+__author__ = 'David Zhang'
 
-from abc import ABC, abstractmethod
-import numpy as np
 import re
+from abc import ABC, abstractmethod
+
+import numpy as np
 
 
 class BayesSpamTrainBase(ABC):
@@ -29,20 +32,19 @@ class BayesSpamModelBase(ABC):
 
     d_type = np.float32
 
-    def _cmp_prob_of_many(self, datas: np.ndarray):
+    def cmp_prob_of_many(self, datas: list):
         '''
         datas is a np array whose dim is 2, it consists of a series of words representing many files' contents.
 
-        E.g. datas = np.array([
+        E.g. [
             ['I', love', 'you'],    # representing the 1st file's content
             ['I', 'hate', 'you']    # representing the 2nd file's content
-        ])
+        ]
         '''
         if np.ndim(datas) != 2:
             raise TypeError("the dim of datas expects 2, but %s" % np.ndim(datas))
 
-        n, m = np.shape(datas)
-        m = 2
+        n, m = len(datas), 2
 
         ret = np.zeros(shape=(n, m), dtype=self.d_type)
 
@@ -52,11 +54,11 @@ class BayesSpamModelBase(ABC):
         return ret
 
     @abstractmethod
-    def _cmp_prob_of_one(self, data: np.ndarray):
+    def cmp_prob_of_one(self, data: list):
         '''
         data is a np array whose dim is 1, it consists of a series of words representing a file's content.
 
-        E.g. data = np.array(['I', love', 'you'])
+        E.g. data = ['I', love', 'you']
 
         return np.array([prob_0, prob_1])
         '''
@@ -73,33 +75,33 @@ class BayesSpamModelBase(ABC):
         E.g.
         [(0.6, 0.4), (0.2, 0.8)] -> [0, 1]
         '''
-        ret = np.zeros(shape=len(datas), dtype=np.int32)
+        ret = []
 
-        for i, tup in enumerate(datas):
-            ret[i] = BayesSpamModelBase.predict_tup_one(tup)
+        for tup in datas:
+            ret.append(BayesSpamModelBase.predict_tup_one(tup))
 
         return ret
 
     @abstractmethod
-    def predict_one(self, data: np.ndarray):
+    def predict_one(self, data: list):
         pass
 
     @abstractmethod
-    def predict_many(self, datas: np.ndarray):
-        pass
-
-    @abstractmethod
-    def read_test_set_data(self, file_list: list, clazz: int, *args, **kwargs):
+    def predict_many(self, datas: list):
         pass
 
 
-class MailFileHelperBase(ABC):
+class FileHelperBase(ABC):
     @abstractmethod
-    def read_data(self, fp):
+    def read_file_content(self, fp, encoding):
         pass
 
-    @abstractmethod
     def split_words_from_str(self, s: str):
         '''this method will split a string into some words'''
         return re.split(r'\s+', s.strip())
+
+    def read_file_words(self, fp: str, encoding=None) -> list:
+        '''read total words in the file'''
+        content = self.read_file_content(fp, encoding)
+        return self.split_words_from_str(content)
 

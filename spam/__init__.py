@@ -1,9 +1,13 @@
-import jieba
-from util import read_conf, mail_file_content_filter
-import logging
+#!/usr/bin/python
 
-CONF_FILE_PATH = '../conf.ini'
-STOP_FILE_PATH = '../data/stop_words.txt'
+from util import read_conf
+import logging
+from util import PROJ_BASE_PATH
+
+CONF_FILE_PATH = '%s/conf/conf.ini' % PROJ_BASE_PATH
+EXPORT_FILES_PATH = '%s/conf/model_class0.txt %s/conf/model_class1.txt' % (PROJ_BASE_PATH, PROJ_BASE_PATH)
+STOP_FILE_PATH = '%s/data/stop_words.txt' % PROJ_BASE_PATH
+# specify the encoding of non-data files
 ENCODING = 'utf-8'
 
 CONF = read_conf(CONF_FILE_PATH, ENCODING)
@@ -14,4 +18,4 @@ logging.basicConfig(
     datefmt=CONF.get('log_date_fmt'),
     format=CONF.get('log_format')
 )
-logging.info("读取配置并配置记录日志成功...")
+logging.info("has read the conf and set the logging successfully...")

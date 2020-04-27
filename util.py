@@ -1,9 +1,22 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
+__author__ = 'David Zhang'
 
 from configparser import ConfigParser
 from sys import stdout, stderr
-import re
 import os
+import re
+
+PROJ_NAME = 'bayes_spam'
+
+
+def get_proj_abs_path():
+    p = os.path.abspath(".").replace('\\', '/')
+    match = re.compile('(.*%s)' % PROJ_NAME).match(p)
+    return match.group(1)
+
+
+PROJ_BASE_PATH = get_proj_abs_path()
 
 
 def sort_str_list(l: list):
@@ -29,7 +42,19 @@ def find_elem_from_sorted_str_list(e: str, l: list):
     return None
 
 
-def read_conf(fp='conf.ini', encoding='utf-8'):
+def bytes2str(data: bytes, encoding='utf-8'):
+    return data.decode(encoding)
+
+
+def check_all_non_none(it):
+    '''return index, if any one is None, else True.'''
+    for i, item in enumerate(it):
+        if item is None:
+            return i
+    return True
+
+
+def read_conf(fp='conf.ini', encoding='utf-8') -> dict:
     '''read confs from fp, and return {encoding, train_set_spam_path, ...}'''
     conf = ConfigParser()
     conf.read(fp, encoding=encoding)
@@ -49,46 +74,8 @@ def read_conf(fp='conf.ini', encoding='utf-8'):
     elif ret.get('stream_type') == '2':
         ret.setdefault('stream', stderr)
     else:
-        log_file = ret.get('log_file')
+        log_file = "%s/%s" % (PROJ_BASE_PATH, ret.get('log_file'))
         encoding = ret.get('log_file_encoding')
         ret.setdefault('stream', open(log_file, mode='w', encoding=encoding))
 
     return ret
-
-
-def bytes2str(data: bytes, encoding='utf-8'):
-    return data.decode(encoding)
-
-
-def mail_file_content_filter(s: str):
-    '''
-    由于邮件文件内容前一部分是由非中文组成的头部，故这个过滤器就是简单的去除内容的
-    前一部分非中文的内容，以及去除剩余空白字符
-
-    s: the content of a mail file
-    '''
-
-    # 分为两组，第一组就是全部非中文字符，第二组就是剩余部分
-    p = re.compile(r'^([^\u4e00-\u9fa5]*)(.*)$', re.MULTILINE | re.DOTALL)
-    return p.match(s).group(2).strip()
-
-
-def get_all_files_under_dir(dir_path: str):
-    dir_path = dir_path.strip().rstrip('/').rstrip('\\')
-    if os.path.isdir(dir_path) is False:
-        raise ValueError('the dir_path(%s) you input is not a dir...' % dir_path)
-
-    ret = []
-
-    for f in os.listdir(dir_path):
-        ret.append('%s/%s' % (dir_path, f))
-
-    return ret
-
-
-def check_all_non_none(it):
-    '''return index, if any one is None, else True.'''
-    for i, item in enumerate(it):
-        if item is None:
-            return i
-    return True

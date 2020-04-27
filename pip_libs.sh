@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# author: David Zhang
 
 # this script is used to install all dependent libs
 
