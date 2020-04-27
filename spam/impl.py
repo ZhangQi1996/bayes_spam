@@ -3,27 +3,26 @@
 __author__ = 'David Zhang'
 
 import logging
-import os
 
 import jieba
 
 from spam.base import *
 from util import *
-from . import CONF, STOP_FILE_PATH, EXPORT_FILES_PATH, PROJ_BASE_PATH
+from . import CONF, STOP_FILE_PATH, EXPORT_FILES_PATH
 
 
 class MailFileHelper(FileHelperBase):
-    '''
+    """
     MailFileHelper类，用于辅助处理mail文件内容的读取，内容的单词拆分
-    '''
+    """
 
     def __init__(self, conf: dict, stop_file_path: str):
-        '''
+        """
         init a MailFileHelper instance
         :param conf: 从conf.ini文件中读取的配置
         :param stop_file_path: 终止文件，用于在从mail文件中读取的内容，划分后的单词若
             其存在于终止文件中，则最终不纳入这个文件的内容单词列表中
-        '''
+        """
         logging.info("initializing an instance of MailFileHelper...")
         self.conf = conf
         self.stop_file_path = stop_file_path
@@ -34,7 +33,7 @@ class MailFileHelper(FileHelperBase):
         logging.info("has completed the initialization of the instance...")
 
     def read_file_content(self, fp, encoding=None) -> str:
-        '''read the contents from the file, and filters the head'''
+        """read the contents from the file, and filters the head"""
 
         if encoding is None:
             encoding = self.conf.get('data_set_encoding')
@@ -46,7 +45,7 @@ class MailFileHelper(FileHelperBase):
         return self.mail_file_content_filter(content)
 
     def _read_stop_file(self, encoding=None):
-        '''读取停用文件'''
+        """读取停用文件"""
         logging.info("starting to read the stop file %s..." % self.stop_file_path)
         self.stop_words = []
 
@@ -66,9 +65,8 @@ class MailFileHelper(FileHelperBase):
         logging.info("has completed the read of the stop file...")
 
     def split_words_from_str(self, s: str) -> list:
-        '''从s中拆分得到所有不存在于stop_words中的单词'''
+        """从s中拆分得到所有不存在于stop_words中的单词"""
         # override
-
         ret = []
         # use the jieba lib to split chinese sentences.
         for word in jieba.cut(s):
@@ -125,12 +123,12 @@ class MailFileHelper(FileHelperBase):
 
     @staticmethod
     def mail_file_content_filter(s: str) -> str:
-        '''
+        """
         由于邮件文件内容前一部分是由非中文组成的头部，故这个过滤器就是简单的去除内容的
         前一部分非中文的内容，以及去除剩余空白字符
 
         s: the content of a mail file
-        '''
+        """
 
         # 分为两组，第一组就是全部非中文字符，第二组就是剩余部分
         p = re.compile(r'^([^\u4e00-\u9fa5]*)(.*)$', re.MULTILINE | re.DOTALL)
@@ -142,17 +140,17 @@ default_file_helper = MailFileHelper(CONF, STOP_FILE_PATH)
 
 
 class BayesSpamTrain(BayesSpamTrainBase):
-    '''
+    """
     仅仅用来获取相关参数
-    '''
+    """
 
     def __init__(self, d_type=np.float32,
                  mail_file_helper=default_file_helper):
-        '''
+        """
         initialize
         :param d_type: 指定内部数据的np.ndarray的数据类型
         :param mail_file_helper: 见MailFileHelper介绍
-        '''
+        """
 
         # base vars
         self.d_type = d_type
@@ -167,7 +165,7 @@ class BayesSpamTrain(BayesSpamTrainBase):
         self._read_conf()
 
     def read_train_set_data(self, file_list: list, clazz: int, *args, **kwargs):
-        '''you can provide an arg named log_step_interval, see _read_set_data'''
+        """you can provide an arg named log_step_interval, see _read_set_data"""
         logging.info("starting to read the data in train set to class %s..." % clazz)
         log_step_interval = kwargs.get('log_step_interval')
         if log_step_interval is None:
@@ -183,7 +181,7 @@ class BayesSpamTrain(BayesSpamTrainBase):
         logging.info("has read the data in train set to class %s..." % clazz)
 
     def _read_conf(self):
-        '''
+        """
         self.conf = {
             encoding
             train_set_normal_path
@@ -197,11 +195,11 @@ class BayesSpamTrain(BayesSpamTrainBase):
             stream
         }
         :return:
-        '''
+        """
         self.conf = CONF
 
     def _train_before(self):
-        '''计算每个类别单词的总个数，每个类别中的每种单词的概率'''
+        """计算每个类别单词的总个数，每个类别中的每种单词的概率"""
 
         _ = check_all_non_none([
             self.train_set_class0_word_times_map,
@@ -212,11 +210,11 @@ class BayesSpamTrain(BayesSpamTrainBase):
                              'maybe you do not call read_train_set_xxx method.' % _)
 
     def train(self, *args, **kwargs):
-        '''
+        """
         exec this method after having read the data of train set, and return a predict model
 
         可以提供参数p_class_0与p_class_1
-        '''
+        """
         self._train_before()
         p_class_0 = kwargs.get('p_class_0')
         p_class_1 = kwargs.get('p_class_1')
@@ -232,9 +230,9 @@ class BayesSpamTrain(BayesSpamTrainBase):
 
 
 class BayesSpamModel(BayesSpamModelBase):
-    '''
+    """
     用于预测
-    '''
+    """
 
     def __init__(self, p_class_0, p_class_1,
                  train_set_class0_word_times_map,
@@ -269,7 +267,7 @@ class BayesSpamModel(BayesSpamModelBase):
         self._read_conf()
 
     def _read_conf(self):
-        '''
+        """
         self.conf = {
             encoding
             train_set_normal_path
@@ -282,15 +280,16 @@ class BayesSpamModel(BayesSpamModelBase):
             log_date_fmt
             stream
         }
-        :return:
-        '''
+        :return: None
+        """
         self.conf = CONF
 
     def read_file_content(self, fp: str) -> str:
+        """read the filtered content from the file"""
         return self.mail_file_helper.read_file_content(fp)
 
     def _get_word_prob_in_train_set_class0(self, word: str, total_words_in_a_file: int) -> float:
-        '''evaluating formula see https://gitee.com/ChiZhung/study_note/blob/master/ML/naive_bayes.md'''
+        """evaluating formula see https://gitee.com/ChiZhung/study_note/blob/master/ML/naive_bayes.md"""
 
         # 获取这个单词在类别0中的索引
         i = self.train_set_class0_word_index_map.get(word)
@@ -433,6 +432,7 @@ class BayesSpamModel(BayesSpamModelBase):
                      d_type=np.float32,
                      mail_file_helper=default_file_helper,
                      encoding='utf-8'):
+        """import the spam predict model from the specified files"""
         file_class0, file_class1 = BayesSpamModel._check_fps(fps)
 
         logging.info("importing the model...")
@@ -465,7 +465,7 @@ class BayesSpamModel(BayesSpamModelBase):
                               mail_file_helper)
 
     def evaluate(self, file_list: list, clazz: int = None, y: list = None, encoding=None) -> float:
-        '''
+        """
         提供一个文件列表以及其对应的真实类别，0是normal，1是spam
 
         e.g.
@@ -474,7 +474,7 @@ class BayesSpamModel(BayesSpamModelBase):
 
         evaluate(['1.txt', '2.txt', '3.txt'], y=[0, 1, 0], encoding='utf-8')
         that means the true class of 1-3.txt is class 0, class 1, class 0 respectively.
-        '''
+        """
         if isinstance(clazz, int):
             y = np.zeros(len(file_list)) + clazz
         if y is None:

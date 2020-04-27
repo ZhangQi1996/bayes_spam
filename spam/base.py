@@ -34,22 +34,19 @@ class BayesSpamModelBase(ABC):
 
     def cmp_prob_of_many(self, datas: list):
         '''
-        datas is a np array whose dim is 2, it consists of a series of words representing many files' contents.
+        datas is a list whose dim is 2, it consists of a series of words representing many files' contents.
 
-        E.g. [
+        E.g. datas = [
             ['I', love', 'you'],    # representing the 1st file's content
             ['I', 'hate', 'you']    # representing the 2nd file's content
         ]
         '''
-        if np.ndim(datas) != 2:
-            raise TypeError("the dim of datas expects 2, but %s" % np.ndim(datas))
-
         n, m = len(datas), 2
 
         ret = np.zeros(shape=(n, m), dtype=self.d_type)
 
         for i in range(n):
-            ret[i][0], ret[i][1] = self._cmp_prob_of_one(datas[i])
+            ret[i][0], ret[i][1] = self.cmp_prob_of_one(datas[i])
 
         return ret
 
