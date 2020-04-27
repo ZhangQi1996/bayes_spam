@@ -21,6 +21,12 @@
 #### 注意
 
 先启动python的服务器，再启动java的客户端
-java客户端启动运行见https://gitee.com/ChiZhung/bayes_spam_rpc的README
+java客户端启动运行见
+
+https://github.com/ZhangQi1996/bayes_spam_rpc的README
+
+OR
+
+https://gitee.com/ChiZhung/bayes_spam_rpc的README
         
     
