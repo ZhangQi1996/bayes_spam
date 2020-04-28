@@ -45,5 +45,9 @@ def test(model=None):
 
 
 if __name__ == '__main__':
-    model = train()
-    # logging.info(test(model))
+    model = BayesSpamModel.import_model()
+    # 设置预测时使用到的高概率词数量
+    model.set_threshold(-1)
+    logging.info(test(model))
+
+    # train()

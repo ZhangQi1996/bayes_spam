@@ -6,6 +6,7 @@ from configparser import ConfigParser
 from sys import stdout, stderr
 import os
 import re
+import numpy as np
 
 PROJ_NAME = 'bayes_spam'
 
@@ -79,3 +80,23 @@ def read_conf(fp='conf.ini', encoding='utf-8') -> dict:
         ret.setdefault('stream', open(log_file, mode='w', encoding=encoding))
 
     return ret
+
+
+def top_k(l, k: int, result_order=False):
+    """
+    返回list中最大的k的元素的值，若找到返回list
+    result_order表示是否结果有序，False表示不保证有序
+    注意：这个方法可能会排序所提供的数组
+    """
+    if k > len(l) or k < -1:
+        raise TypeError("the arg l or k is illegal, len of l is %s, k is %s" % (len(l), k))
+
+    if not isinstance(l, np.ndarray):
+        l = np.array(l)
+    l = l.flatten()
+
+    if k == -1 and result_order is False:
+        return l
+
+    l.sort()
+    return l[-k:]

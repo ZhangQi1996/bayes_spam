@@ -24,9 +24,9 @@ class MailFileHelper(FileHelperBase):
             其存在于终止文件中，则最终不纳入这个文件的内容单词列表中
         """
         logging.info("initializing an instance of MailFileHelper...")
-        self.conf = conf
-        self.stop_file_path = stop_file_path
-        self.stop_words = None
+        self._conf = conf
+        self._stop_file_path = stop_file_path
+        self._stop_words = None
 
         # read contents of the stop file
         self._read_stop_file()
@@ -36,7 +36,7 @@ class MailFileHelper(FileHelperBase):
         """read the contents from the file, and filters the head"""
 
         if encoding is None:
-            encoding = self.conf.get('data_set_encoding')
+            encoding = self._conf.get('data_set_encoding')
 
         with open(fp, 'r', encoding=encoding) as f:
             content = f.read()
@@ -46,32 +46,33 @@ class MailFileHelper(FileHelperBase):
 
     def _read_stop_file(self, encoding=None):
         """读取停用文件"""
-        logging.info("starting to read the stop file %s..." % self.stop_file_path)
-        self.stop_words = []
+        logging.info("starting to read the stop file %s..." % self._stop_file_path)
+        self._stop_words = []
 
         if encoding is None:
-            encoding = self.conf.get('data_set_encoding')
+            encoding = self._conf.get('data_set_encoding')
 
         # read every line in the stop file
-        for line in open(self.stop_file_path, 'r', encoding=encoding):
+        for line in open(self._stop_file_path, 'r', encoding=encoding):
             _ = line.strip()  # trim the line
             if _ == '':
-                break
-            self.stop_words.append(_)
+                continue
+            self._stop_words.append(_)
 
         # 将stop_words进行排序, 用于在后面使用二分查找
         # sort the stop_words to use a bi-search subsequently.
-        self.stop_words = sort_str_list(self.stop_words)
+        self._stop_words = sort_str_list(self._stop_words)
         logging.info("has completed the read of the stop file...")
 
     def split_words_from_str(self, s: str) -> list:
-        """从s中拆分得到所有不存在于stop_words中的单词"""
+        """从s中拆分得到所有不存在于stop_words中的单词(不包括空白字符串)"""
         # override
         ret = []
         # use the jieba lib to split chinese sentences.
         for word in jieba.cut(s):
-            # the word not in stop_words
-            if find_elem_from_sorted_str_list(word, self.stop_words) is not None:
+            word = word.strip()     # trim the word
+            # the word not empty and not in stop_words
+            if word != '' and find_elem_from_sorted_str_list(word, self._stop_words) is None:
                 ret.append(word)
 
         return ret
@@ -95,11 +96,11 @@ class MailFileHelper(FileHelperBase):
             step = 1
 
         if encoding is None:
-            encoding = self.conf.get('data_set_encoding')
+            encoding = self._conf.get('data_set_encoding')
 
         for i, fp in enumerate(file_list):
             content = self.read_file_content(fp, encoding)
-            for word in self.split_words_from_str(content):
+            for word in self.split_words_from_str(content):     # not includes space str
                 ret.setdefault(word, 0)
                 ret[word] += 1
             if i % step == 0:
@@ -154,12 +155,12 @@ class BayesSpamTrain(BayesSpamTrainBase):
 
         # base vars
         self.d_type = d_type
-        self.mail_file_helper = mail_file_helper
+        self._mail_file_helper = mail_file_helper
 
         # train set
         # in class 0, a map from the word to its occurring times.
-        self.train_set_class0_word_times_map = None
-        self.train_set_class1_word_times_map = None
+        self._train_set_class0_word_times_map = None
+        self._train_set_class1_word_times_map = None
 
         # read conf
         self._read_conf()
@@ -171,18 +172,18 @@ class BayesSpamTrain(BayesSpamTrainBase):
         if log_step_interval is None:
             log_step_interval = 1
 
-        d = self.mail_file_helper.read_total_word_times(file_list, log_step_interval)
+        d = self._mail_file_helper.read_total_word_times(file_list, log_step_interval)
 
         if clazz == 0:
-            self.train_set_class0_word_times_map = d
+            self._train_set_class0_word_times_map = d
         else:
-            self.train_set_class1_word_times_map = d
+            self._train_set_class1_word_times_map = d
 
         logging.info("has read the data in train set to class %s..." % clazz)
 
     def _read_conf(self):
         """
-        self.conf = {
+        self._conf = {
             encoding
             train_set_normal_path
             train_set_spam_path
@@ -196,14 +197,14 @@ class BayesSpamTrain(BayesSpamTrainBase):
         }
         :return:
         """
-        self.conf = CONF
+        self._conf = CONF
 
     def _train_before(self):
         """计算每个类别单词的总个数，每个类别中的每种单词的概率"""
 
         _ = check_all_non_none([
-            self.train_set_class0_word_times_map,
-            self.train_set_class1_word_times_map
+            self._train_set_class0_word_times_map,
+            self._train_set_class1_word_times_map
         ])
         if _ is not True:
             raise ValueError('the item in index %s is None, '
@@ -224,8 +225,8 @@ class BayesSpamTrain(BayesSpamTrainBase):
             p_class_1 = 0.5
 
         return BayesSpamModel(p_class_0, p_class_1,
-                              self.train_set_class0_word_times_map,
-                              self.train_set_class1_word_times_map,
+                              self._train_set_class0_word_times_map,
+                              self._train_set_class1_word_times_map,
                               self.d_type)
 
 
@@ -244,31 +245,31 @@ class BayesSpamModel(BayesSpamModelBase):
         self.p_class_1 = p_class_1
 
         self.d_type = d_type
-        self.mail_file_helper = mail_file_helper
+        self._mail_file_helper = mail_file_helper
 
-        self.train_set_class0_word_times = np.array(list(train_set_class0_word_times_map.values()),
-                                                    dtype=np.int32)
-        self.train_set_class0_word_index_map = {
+        self._train_set_class0_word_times = np.array(list(train_set_class0_word_times_map.values()),
+                                                     dtype=np.int32)
+        self._train_set_class0_word_index_map = {
             key: i for i, key in enumerate(train_set_class0_word_times_map.keys())
         }
 
-        self.train_set_class1_word_times = np.array(list(train_set_class1_word_times_map.values()),
-                                                    dtype=np.int32)
-        self.train_set_class1_word_index_map = {
+        self._train_set_class1_word_times = np.array(list(train_set_class1_word_times_map.values()),
+                                                     dtype=np.int32)
+        self._train_set_class1_word_index_map = {
             key: i for i, key in enumerate(train_set_class1_word_times_map.keys())
         }
 
-        self.train_set_class0_word_nums = sum(self.train_set_class0_word_times)
-        self.train_set_class0_word_prob = self.train_set_class0_word_times / self.train_set_class0_word_nums
+        self._train_set_class0_word_nums = sum(self._train_set_class0_word_times)
 
-        self.train_set_class1_word_nums = sum(self.train_set_class1_word_times)
-        self.train_set_class1_word_prob = self.train_set_class1_word_times / self.train_set_class1_word_nums
+        self._train_set_class1_word_nums = sum(self._train_set_class1_word_times)
+
+        self._threshold = -1
 
         self._read_conf()
 
     def _read_conf(self):
         """
-        self.conf = {
+        self._conf = {
             encoding
             train_set_normal_path
             train_set_spam_path
@@ -282,32 +283,32 @@ class BayesSpamModel(BayesSpamModelBase):
         }
         :return: None
         """
-        self.conf = CONF
+        self._conf = CONF
 
     def read_file_content(self, fp: str) -> str:
         """read the filtered content from the file"""
-        return self.mail_file_helper.read_file_content(fp)
+        return self._mail_file_helper.read_file_content(fp)
 
     def _get_word_prob_in_train_set_class0(self, word: str, total_words_in_a_file: int) -> float:
         """evaluating formula see https://gitee.com/ChiZhung/study_note/blob/master/ML/naive_bayes.md"""
 
         # 获取这个单词在类别0中的索引
-        i = self.train_set_class0_word_index_map.get(word)
+        i = self._train_set_class0_word_index_map.get(word)
 
-        word_times_in_class0 = 0 if i is None else self.train_set_class0_word_times[i]
+        word_times_in_class0 = 0 if i is None else self._train_set_class0_word_times[i]
 
-        p = (1 + word_times_in_class0) / (total_words_in_a_file + self.train_set_class0_word_nums)
+        p = (1 + word_times_in_class0) / (total_words_in_a_file + self._train_set_class0_word_nums)
         return p
 
     def _get_word_prob_in_train_set_class1(self, word: str, total_words_in_a_file: int) -> float:
-        '''evaluating formula see https://gitee.com/ChiZhung/study_note/blob/master/ML/naive_bayes.md'''
+        """evaluating formula see https://gitee.com/ChiZhung/study_note/blob/master/ML/naive_bayes.md"""
 
         # 获取这个单词在类别1中的索引
-        i = self.train_set_class1_word_index_map.get(word)
+        i = self._train_set_class1_word_index_map.get(word)
 
-        word_times_in_class1 = 0 if i is None else self.train_set_class1_word_times[i]
+        word_times_in_class1 = 0 if i is None else self._train_set_class1_word_times[i]
 
-        p = (1 + word_times_in_class1) / (total_words_in_a_file + self.train_set_class1_word_nums)
+        p = (1 + word_times_in_class1) / (total_words_in_a_file + self._train_set_class1_word_nums)
         return p
 
     def _get_word_prob_in_train_set(self, word: str, total_words_in_a_file: int, clazz: int):
@@ -315,12 +316,12 @@ class BayesSpamModel(BayesSpamModelBase):
             return self._get_word_prob_in_train_set_class0(word, total_words_in_a_file)
         return self._get_word_prob_in_train_set_class1(word, total_words_in_a_file)
 
-    def cmp_prob_of_one(self, data: list) -> tuple:
-        '''
+    def _cmp_prob_of_one(self, data: list) -> tuple:
+        """
         计算一个mail（由其单词数组代表）分别属于normal, spam类别的概率'
 
         evaluates respectively normal and spam prob of the mail represented by it's words' array.
-        '''
+        """
 
         # 由于一个文件中存在重复单词，故使用缓存
         word_cache_dict_class0 = {}
@@ -339,6 +340,7 @@ class BayesSpamModel(BayesSpamModelBase):
                 self._get_word_prob_in_train_set_class1(word, total_words_in_a_file)
             )
 
+        # ndarray
         file_p_class0 = np.zeros(total_words_in_a_file, dtype=self.d_type)
         file_p_class1 = np.zeros(total_words_in_a_file, dtype=self.d_type)
 
@@ -346,51 +348,63 @@ class BayesSpamModel(BayesSpamModelBase):
             file_p_class0[i] = word_cache_dict_class0.get(data[i])
             file_p_class1[i] = word_cache_dict_class1.get(data[i])
 
-        # formula: Sigma(1,n){log(p(w=wij|c=x)} + log(p(c=x))
+        # top threshold
+        if file_p_class0.size < self._threshold:
+            file_p_class0 = top_k(file_p_class0, -1)
+            file_p_class1 = top_k(file_p_class1, -1)
+        else:
+            file_p_class0 = top_k(file_p_class0, self._threshold)
+            file_p_class1 = top_k(file_p_class1, self._threshold)
 
+        # formula: Sigma(1,n){log(p(w=wij|c=x)} + log(p(c=x))
+        # int val
         file_p_class0 = np.sum(np.log(file_p_class0)) + np.log(self.p_class_0)
         file_p_class1 = np.sum(np.log(file_p_class1)) + np.log(self.p_class_1)
 
         return file_p_class0, file_p_class1
 
+    def set_threshold(self, threshold=-1):
+        """设置在预测时采用文本的前高频率threshold个词，-1表示所有词"""
+        self._threshold = threshold
+
     def predict_one(self, data: list) -> int:
-        '''data就是一个文件的内容单词列表, 返回预测结果'''
+        """data就是一个文件的内容单词列表, 返回预测结果"""
         return self.predict_tup_one(
-            self.cmp_prob_of_one(data)
+            self._cmp_prob_of_one(data)
         )
 
     def predict_one_file(self, fp, encoding=None) -> int:
-        '''if not specifies encoding, it will be set according to conf.ini--data_set_encoding'''
-        words = self.mail_file_helper.read_file_words(fp, encoding)
+        """if not specifies encoding, it will be set according to conf.ini--data_set_encoding"""
+        words = self._mail_file_helper.read_file_words(fp, encoding)
         return self.predict_one(words)
 
     def predict_one_bytes(self, data: bytes, encoding=None) -> int:
-        '''if not specifies encoding, it will be set according to conf.ini--data_set_encoding'''
+        """if not specifies encoding, it will be set according to conf.ini--data_set_encoding"""
         if encoding is None:
-            encoding = self.conf.get('data_set_encoding')
+            encoding = self._conf.get('data_set_encoding')
 
         content = bytes2str(data, encoding)
-        filtered_content = self.mail_file_helper.mail_file_content_filter(content)
-        words = self.mail_file_helper.split_words_from_str(filtered_content)
+        filtered_content = self._mail_file_helper.mail_file_content_filter(content)
+        words = self._mail_file_helper.split_words_from_str(filtered_content)
         return self.predict_one(words)
 
     def predict_many(self, datas: list) -> list:
-        '''datas就是多个文件的内容2dim单词列表, 返回预测结果'''
+        """datas就是多个文件的内容2dim单词列表, 返回预测结果"""
         return self.predict_tup_many(
-            self.cmp_prob_of_many(datas)
+            self._cmp_prob_of_many(datas)
         )
 
     def predict_many_files(self, file_list: list, encoding=None) -> list:
-        '''if not specifies encoding, it will be set according to conf.ini--data_set_encoding'''
+        """if not specifies encoding, it will be set according to conf.ini--data_set_encoding"""
         return [self.predict_one_file(fp, encoding) for fp in file_list]
 
     def predict_many_bytes(self, datas: list, encoding=None) -> list:
-        '''if not specifies encoding, it will be set according to conf.ini--data_set_encoding'''
+        """if not specifies encoding, it will be set according to conf.ini--data_set_encoding"""
         return [self.predict_one_bytes(data, encoding) for data in datas]
 
     @staticmethod
     def acc(y_hat: list, y: list):
-        '''计算正确率'''
+        """计算正确率"""
         y_hat = np.array(y_hat).flatten()
         y = np.array(y).flatten()
 
@@ -407,21 +421,21 @@ class BayesSpamModel(BayesSpamModelBase):
         return split[0], split[1]
 
     def export_model(self, fps=EXPORT_FILES_PATH, encoding='utf-8'):
-        '''
+        """
         将 train_set_class0_word_times_map与
          train_set_class1_word_times_map分别放置在文件model_class0.txt model_class1.txt中
-        '''
+        """
         file_class0, file_class1 = self._check_fps(fps)
 
         logging.info("exporting the model...")
 
         with open(file_class0, 'w', encoding=encoding) as f:
-            for word, i in self.train_set_class0_word_index_map.items():
-                f.write("%s %s\n" % (word, self.train_set_class0_word_times[i]))
+            for word, i in self._train_set_class0_word_index_map.items():
+                f.write("%s %s\n" % (word, self._train_set_class0_word_times[i]))
 
         with open(file_class1, 'w', encoding=encoding) as f:
-            for word, i in self.train_set_class1_word_index_map.items():
-                f.write("%s %s\n" % (word, self.train_set_class1_word_times[i]))
+            for word, i in self._train_set_class1_word_index_map.items():
+                f.write("%s %s\n" % (word, self._train_set_class1_word_times[i]))
 
         logging.info("has completed the export...")
 
@@ -441,16 +455,16 @@ class BayesSpamModel(BayesSpamModelBase):
         train_set_class1_word_times_map = {}
 
         def load(fp, d):
-            for line in open(fp, 'r', encoding=encoding):
+            for i, line in enumerate(open(fp, 'r', encoding=encoding)):
                 try:
                     line = line.strip()
                     word, times = re.split(r'\s+', line)
                     times = int(times)
 
                     d[word] = times
-                except Exception as e:
-                    logging.exception(repr(e))
-                    raise Exception('parse the file %s in failure..' % fp)
+                except:
+                    raise Exception('parse the file %s in failure, line %s: \'%s\''
+                                    % (fp, i + 1, line))
 
         load(file_class0, train_set_class0_word_times_map)
         load(file_class1, train_set_class1_word_times_map)
@@ -481,4 +495,3 @@ class BayesSpamModel(BayesSpamModelBase):
             raise ValueError("you must provide either an arg clazz or y...")
         y_hat = self.predict_many_files(file_list, encoding)
         return self.acc(y_hat, y)
-
