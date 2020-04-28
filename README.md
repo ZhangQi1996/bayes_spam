@@ -33,6 +33,7 @@ keywords: bayes classifier, spam recognize, rpc
     * 也就是model.set_threshold(k), k=-1时表示取所有单词
     * 默认值-1
     * 实验中时取-1值，在测试集合预测效果最好，若你要提升预测速度可以修改这个值为较小值（不保证准确度）
+* 全部在默认值的情况下，在测试集合上的准确度高于98%
         
 #### 注意
 
