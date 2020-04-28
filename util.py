@@ -25,11 +25,11 @@ def sort_str_list(l: list):
 
 
 def find_elem_from_sorted_str_list(e: str, l: list):
-    '''
+    """
     查找成功返回该元素索引，否则返回None
 
     finds the target element and return its index, if any, otherwise None.
-    '''
+    """
     # 采用二分查找(uses bi-find)
     lo, hi = 0, len(l) - 1
     while lo < hi:
@@ -48,7 +48,7 @@ def bytes2str(data: bytes, encoding='utf-8'):
 
 
 def check_all_non_none(it):
-    '''return index, if any one is None, else True.'''
+    """return index, if any one is None, else True."""
     for i, item in enumerate(it):
         if item is None:
             return i
@@ -56,7 +56,7 @@ def check_all_non_none(it):
 
 
 def read_conf(fp='conf.ini', encoding='utf-8') -> dict:
-    '''read confs from fp, and return {encoding, train_set_spam_path, ...}'''
+    """read confs from fp, and return {encoding, train_set_spam_path, ...}"""
     conf = ConfigParser()
     conf.read(fp, encoding=encoding)
 
@@ -88,15 +88,18 @@ def top_k(l, k: int, result_order=False):
     result_order表示是否结果有序，False表示不保证有序
     注意：这个方法可能会排序所提供的数组
     """
+    if k == -1:
+        if result_order is False:
+            return l
+        else:
+            k = len(l)
+
     if k > len(l) or k < -1:
         raise TypeError("the arg l or k is illegal, len of l is %s, k is %s" % (len(l), k))
 
     if not isinstance(l, np.ndarray):
         l = np.array(l)
     l = l.flatten()
-
-    if k == -1 and result_order is False:
-        return l
-
     l.sort()
+
     return l[-k:]

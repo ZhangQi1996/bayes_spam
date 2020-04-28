@@ -184,10 +184,7 @@ class BayesSpamTrain(BayesSpamTrainBase):
     def _read_conf(self):
         """
         self._conf = {
-            encoding
-            train_set_normal_path
-            train_set_spam_path
-            train_set_encoding
+            data_set_encoding
             stream_type
             log_file
             log_level
@@ -270,10 +267,7 @@ class BayesSpamModel(BayesSpamModelBase):
     def _read_conf(self):
         """
         self._conf = {
-            encoding
-            train_set_normal_path
-            train_set_spam_path
-            train_set_encoding
+            data_set_encoding
             stream_type
             log_file
             log_level
@@ -289,67 +283,44 @@ class BayesSpamModel(BayesSpamModelBase):
         """read the filtered content from the file"""
         return self._mail_file_helper.read_file_content(fp)
 
-    def _get_word_prob_in_train_set_class0(self, word: str, total_words_in_a_file: int) -> float:
-        """evaluating formula see https://gitee.com/ChiZhung/study_note/blob/master/ML/naive_bayes.md"""
-
+    def _get_word_times_in_class0(self, word: str) -> int:
+        """get the specified word's occurring times in class 0"""
         # 获取这个单词在类别0中的索引
         i = self._train_set_class0_word_index_map.get(word)
+        return 0 if i is None else self._train_set_class0_word_times[i]
 
-        word_times_in_class0 = 0 if i is None else self._train_set_class0_word_times[i]
-
-        p = (1 + word_times_in_class0) / (total_words_in_a_file + self._train_set_class0_word_nums)
-        return p
-
-    def _get_word_prob_in_train_set_class1(self, word: str, total_words_in_a_file: int) -> float:
-        """evaluating formula see https://gitee.com/ChiZhung/study_note/blob/master/ML/naive_bayes.md"""
-
+    def _get_word_times_in_class1(self, word: str) -> int:
+        """get the specified word's occurring times in class 1"""
         # 获取这个单词在类别1中的索引
         i = self._train_set_class1_word_index_map.get(word)
-
-        word_times_in_class1 = 0 if i is None else self._train_set_class1_word_times[i]
-
-        p = (1 + word_times_in_class1) / (total_words_in_a_file + self._train_set_class1_word_nums)
-        return p
-
-    def _get_word_prob_in_train_set(self, word: str, total_words_in_a_file: int, clazz: int):
-        if clazz == 0:
-            return self._get_word_prob_in_train_set_class0(word, total_words_in_a_file)
-        return self._get_word_prob_in_train_set_class1(word, total_words_in_a_file)
+        return 0 if i is None else self._train_set_class1_word_times[i]
 
     def _cmp_prob_of_one(self, data: list) -> tuple:
         """
-        计算一个mail（由其单词数组代表）分别属于normal, spam类别的概率'
+        计算一个mail（由其单词数组代表）分别属于normal, spam类别的概率
 
         evaluates respectively normal and spam prob of the mail represented by it's words' array.
+
+        evaluating formula see https://gitee.com/ChiZhung/study_note/blob/master/ML/naive_bayes.md
         """
-
-        # 由于一个文件中存在重复单词，故使用缓存
-        word_cache_dict_class0 = {}
-        word_cache_dict_class1 = {}
-
         total_words_in_a_file = len(data)
-
-        # evaluate p(w=wij|c=0 or 1) per word.
-        for word in data:
-            word_cache_dict_class0.setdefault(
-                word,
-                self._get_word_prob_in_train_set_class0(word, total_words_in_a_file)
-            )
-            word_cache_dict_class1.setdefault(
-                word,
-                self._get_word_prob_in_train_set_class1(word, total_words_in_a_file)
-            )
 
         # ndarray
         file_p_class0 = np.zeros(total_words_in_a_file, dtype=self.d_type)
         file_p_class1 = np.zeros(total_words_in_a_file, dtype=self.d_type)
 
-        for i in range(total_words_in_a_file):
-            file_p_class0[i] = word_cache_dict_class0.get(data[i])
-            file_p_class1[i] = word_cache_dict_class1.get(data[i])
+        # evaluate {p(w=wi|c=0 or 1)}
+        for i, word in enumerate(data):
+            file_p_class0[i] = self._get_word_times_in_class0(word)
+            file_p_class1[i] = self._get_word_times_in_class1(word)
+        file_p_class0 = (file_p_class0 + 1) / (total_words_in_a_file + self._train_set_class0_word_nums)
+        file_p_class1 = (file_p_class1 + 1) / (total_words_in_a_file + self._train_set_class1_word_nums)
 
+        # 取前threshold个（自我感觉是鸡肋，由于全部的单词的预概率都已经计算，
+        # 若取前threshold个高预概率的词由于需要使用快排来
+        # 取前threshold个，反而速度变慢。由于numpy矩阵计算的优势，取前threshold个目似优势也不明显）
         # top threshold
-        if file_p_class0.size < self._threshold:
+        if file_p_class0.size <= self._threshold:
             file_p_class0 = top_k(file_p_class0, -1)
             file_p_class1 = top_k(file_p_class1, -1)
         else:

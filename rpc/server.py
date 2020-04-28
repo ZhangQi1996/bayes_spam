@@ -4,13 +4,12 @@
 __author__ = 'David Zhang'
 
 from thrift import Thrift
-from thrift.transport import TSocket, TTransport
 from thrift.protocol import TCompactProtocol
 from thrift.server import TServer
+from thrift.transport import TSocket, TTransport
+
 from rpc import MailQueryService, ttypes, HOST, PORT
 from spam.impl import *
-from util import bytes2str
-import logging
 
 
 class MailQueryServiceHandler(MailQueryService.Iface):

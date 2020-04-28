@@ -5,14 +5,15 @@
 
 function usage() {
 	cat <<EOF
-Usage: bash pip_libs.sh [--mirror=<mirror-url> | -M]
+Usage: bash pip_libs.sh [--mirror=<mirror-url>|-M] [-h|--help]
 Options:
   --mirror=<mirror-url>:
     will use a mirror you specify to install libs
   -M:
     just use a default mirror to install libs
     default: https://mirrors.aliyun.com/pypi/simple
-if any options be not specified, it will not use a mirror to install libs existed in the file requirements.txt.
+if any option is not specified, it will not use a mirror
+  to install libs listed in the file 'requirements.txt'.
 EOF
 }
 
@@ -22,14 +23,14 @@ libs_file=requirements.txt
 while (( $# > 0 )); do
   case "$1" in
     --mirror=?*)
-    mirror=$(echo "$1" | sed 's/--mirror=//' | sed "s/['\"]//g")
-    shift
-    ;;
+      mirror=$(echo "$1" | sed 's/--mirror=//' | sed "s/['\"]//g")
+      shift
+      ;;
     -M)
       mirror='https://mirrors.aliyun.com/pypi/simple'
       shift
       ;;
-    -h)
+    -h|--help)
       usage
       exit 0
       ;;
