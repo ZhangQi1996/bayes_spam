@@ -5,13 +5,15 @@
 
 function usage() {
 	cat <<EOF
-Usage: bash pip_libs.sh [--mirror=<mirror-url>|-M] [-h|--help]
+Usage: bash pip_libs.sh [--mirror=<mirror-url>|-M] [-h|--help] [--pip=<pip-path>]
 Options:
   --mirror=<mirror-url>:
     will use a mirror you specify to install libs
   -M:
     just use a default mirror to install libs
     default: https://mirrors.aliyun.com/pypi/simple
+  --pip=<pip-path>:
+    specifies the path pip installed or it in the sys path.
 if any option is not specified, it will not use a mirror
   to install libs listed in the file 'requirements.txt'.
 EOF
@@ -19,11 +21,16 @@ EOF
 
 mirror=
 libs_file=requirements.txt
+pip=pip
 
 while (( $# > 0 )); do
   case "$1" in
     --mirror=?*)
       mirror=$(echo "$1" | sed 's/--mirror=//' | sed "s/['\"]//g")
+      shift
+      ;;
+    --pip=?*)
+      pip=$(echo "$1" | sed 's/--pip=//' | sed "s/['\"]//g")
       shift
       ;;
     -M)
@@ -46,10 +53,10 @@ echo -e "[INFO] these libs will be installed:\n$libs"
 
 if [[ -z $mirror ]]; then
   echo "[INFO] pip is installing without a mirror."
-  pip install $libs
+  "$pip" install $libs
 else
   echo "[INFO] pip is installing with the mirror $mirror."
-  pip install $libs -i $mirror
+  "$pip" install $libs -i $mirror
 fi
 
 exit $?
